@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0a0a0a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Discography Tracker</title>
+<link rel="manifest" href="/Discography/manifest.json">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:ital,wght@0,400;0,500;1,400&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0a0a; --surface: #111; --border: #1e1e1e; --border-hover: #333;
+    --accent: #e8ff47; --text: #e0e0e0; --muted: #4a4a4a; --heard-text: #3a3a3a;
+    --tag-album: #e8ff47; --tag-single: #47c9ff; --tag-ep: #ff7847; --tag-other: #a0a0a0;
+    --watching: #47c9ff;
+  }
+  body { background:var(--bg); color:var(--text); font-family:'IBM Plex Mono',monospace; min-height:100vh; padding:2rem 1.5rem 4rem; max-width:780px; margin:0 auto; }
+  header { border-bottom:1px solid var(--border); padding-bottom:1.5rem; margin-bottom:2rem; }
+  h1 { font-family:'Bebas Neue',sans-serif; font-size:clamp(2.5rem,10vw,5rem); letter-spacing:0.05em; line-height:1; color:var(--accent); }
+  .subtitle { font-size:0.65rem; color:var(--muted); margin-top:0.4rem; letter-spacing:0.12em; text-transform:uppercase; }
+  .section-label { font-size:0.62rem; color:var(--muted); letter-spacing:0.12em; text-transform:uppercase; margin-bottom:0.6rem; }
+  .status { font-size:0.72rem; color:var(--muted); margin-bottom:1rem; letter-spacing:0.05em; min-height:1.1em; }
+  .status.error { color:#ff5555; }
+  button.primary { background:var(--accent); color:#000; border:none; font-family:'Bebas Neue',sans-serif; font-size:1.1rem; letter-spacing:0.1em; padding:0 1.5rem; cursor:pointer; transition:opacity 0.15s; white-space:nowrap; border-radius:0; height:2.6rem; }
+  button.primary:hover { opacity:0.85; }
+  button.primary:disabled { opacity:0.3; cursor:not-allowed; }
+  .filter-btn { background:transparent; border:1px solid var(--border); color:var(--muted); font-family:'IBM Plex Mono',monospace; font-size:0.62rem; letter-spacing:0.08em; text-transform:uppercase; padding:0.3rem 0.65rem; cursor:pointer; transition:all 0.15s; border-radius:0; }
+  .filter-btn:hover { border-color:var(--border-hover); color:var(--text); }
+  .filter-btn.active { border-color:var(--accent); color:var(--accent); }
+  .filter-btn.watching-active { border-color:var(--watching); color:var(--watching); }
+  #artistView { display:none; }
+  .search-row { display:flex; gap:0.75rem; margin-bottom:1.5rem; }
+  .search-row input { flex:1; background:var(--surface); border:1px solid var(--border); color:var(--text); font-family:'IBM Plex Mono',monospace; font-size:0.9rem; padding:0.65rem 1rem; outline:none; transition:border-color 0.15s; -webkit-appearance:none; border-radius:0; }
+  .search-row input:focus { border-color:var(--accent); }
+  .search-row input::placeholder { color:var(--muted); }
+  .check-new-section { margin-bottom:2rem; padding-bottom:2rem; border-bottom:1px solid var(--border); }
+  .check-new-row { display:flex; align-items:center; gap:1rem; margin-bottom:0.5rem; }
+  .check-new-meta { font-size:0.62rem; color:var(--muted); letter-spacing:0.05em; display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; }
+  .check-new-meta em { color:var(--text); font-style:normal; }
+  .edit-date-btn { background:transparent; border:none; color:var(--muted); font-family:'IBM Plex Mono',monospace; font-size:0.58rem; letter-spacing:0.08em; text-transform:uppercase; cursor:pointer; padding:0; text-decoration:underline; transition:color 0.15s; }
+  .edit-date-btn:hover { color:var(--text); }
+  .edit-date-row { display:flex; align-items:center; gap:0.5rem; margin-top:0.4rem; }
+  .edit-date-row input[type="date"] { background:var(--surface); border:1px solid var(--border); color:var(--text); font-family:'IBM Plex Mono',monospace; font-size:0.72rem; padding:0.3rem 0.5rem; outline:none; border-radius:0; -webkit-appearance:none; }
+  .edit-date-row input[type="date"]:focus { border-color:var(--accent); }
+  .edit-date-row button { background:transparent; border:1px solid var(--border); color:var(--muted); font-family:'IBM Plex Mono',monospace; font-size:0.62rem; letter-spacing:0.08em; text-transform:uppercase; padding:0.3rem 0.6rem; cursor:pointer; transition:all 0.15s; border-radius:0; }
+  .edit-date-row button:hover { border-color:var(--accent); color:var(--accent); }
+  .new-releases-list { margin-top:1rem; }
+  .new-release-row { display:grid; grid-template-columns:2rem 1fr auto; gap:0.75rem; align-items:center; padding:0.55rem 0; border-bottom:1px solid var(--border); cursor:pointer; user-select:none; -webkit-tap-highlight-color:transparent; transition:background 0.1s; }
+  .new-release-row:hover { background:#ffffff05; }
+  .new-release-artist { font-size:0.6rem; color:var(--muted); letter-spacing:0.06em; text-transform:uppercase; margin-top:0.15rem; }
+  .check-scanning { font-size:0.72rem; color:var(--muted); letter-spacing:0.06em; padding:0.75rem 0; display:none; }
+  .check-scanning.visible { display:block; }
+  .new-empty { font-size:0.72rem; color:var(--muted); letter-spacing:0.05em; padding:0.75rem 0; }
+  .tracked-grid { display:flex; flex-direction:column; margin-bottom:2rem; }
+  .tracked-card { display:flex; align-items:center; justify-content:space-between; padding:0.7rem 0; border-bottom:1px solid var(--border); cursor:pointer; transition:background 0.1s; -webkit-tap-highlight-color:transparent; gap:1rem; }
+  .tracked-card:hover { background:#ffffff05; }
+  .tracked-card-name { font-size:0.9rem; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .tracked-card-right { display:flex; align-items:center; gap:0.75rem; flex-shrink:0; }
+  .tracked-progress-wrap { display:flex; align-items:center; gap:0.5rem; }
+  .tracked-bar { width:60px; height:2px; background:var(--border); position:relative; }
+  .tracked-bar-fill { position:absolute; top:0; left:0; height:100%; background:var(--accent); }
+  .tracked-count { font-size:0.62rem; color:var(--muted); letter-spacing:0.04em; white-space:nowrap; }
+  .tracked-count em { color:var(--accent); font-style:normal; }
+  .tracked-card.keeping .tracked-card-name { color:var(--text); }
+  .keeping-label { font-size:0.58rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--watching); border:1px solid var(--watching); padding:0.15rem 0.45rem; white-space:nowrap; flex-shrink:0; }
+  .keeping-date { font-size:0.62rem; color:var(--muted); white-space:nowrap; }
+  .untrack-btn { background:transparent; border:none; color:var(--muted); font-size:0.9rem; cursor:pointer; padding:0.1rem 0.2rem; line-height:1; transition:color 0.15s; flex-shrink:0; }
+  .untrack-btn:hover { color:#ff5555; }
+  .home-empty { color:var(--muted); font-size:0.72rem; letter-spacing:0.05em; padding:1rem 0 2rem; }
+  .back-btn { background:transparent; border:none; color:var(--muted); font-family:'IBM Plex Mono',monospace; font-size:0.65rem; letter-spacing:0.1em; text-transform:uppercase; cursor:pointer; padding:0; margin-bottom:1.5rem; display:flex; align-items:center; gap:0.4rem; transition:color 0.15s; }
+  .back-btn:hover { color:var(--text); }
+  .picker-label { font-size:0.65rem; color:var(--muted); letter-spacing:0.1em; text-transform:uppercase; margin-bottom:0.5rem; }
+  .artist-option { padding:0.65rem 0.75rem; border:1px solid var(--border); margin-bottom:0.4rem; cursor:pointer; background:var(--surface); transition:border-color 0.15s; }
+  .artist-option:hover { border-color:var(--accent); }
+  .artist-option-name { font-size:0.85rem; }
+  .artist-option-meta { font-size:0.65rem; color:var(--muted); margin-top:0.1rem; }
+  .toolbar { display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; margin-bottom:1.25rem; }
+  .toolbar-sep { width:1px; height:1.5rem; background:var(--border); margin:0 0.1rem; }
+  .progress-text { font-size:0.62rem; color:var(--muted); letter-spacing:0.06em; margin-left:auto; }
+  .progress-text span { color:var(--accent); }
+  .progress-bar-wrap { height:2px; background:var(--border); margin-bottom:1.5rem; }
+  .progress-bar-fill { height:100%; background:var(--accent); transition:width 0.4s ease; width:0%; }
+  .artist-header { margin-bottom:1.5rem; padding-bottom:1.25rem; border-bottom:1px solid var(--border); }
+  .artist-name-display { font-family:'Bebas Neue',sans-serif; font-size:2.2rem; letter-spacing:0.05em; line-height:1; }
+  .artist-meta-display { font-size:0.65rem; color:var(--muted); margin-top:0.35rem; letter-spacing:0.08em; text-transform:uppercase; }
+  .keeping-tabs-view { padding:1.5rem 0; border-top:1px solid var(--border); }
+  .keeping-tabs-label { font-family:'Bebas Neue',sans-serif; font-size:1.4rem; letter-spacing:0.08em; color:var(--watching); margin-bottom:0.5rem; }
+  .keeping-tabs-meta { font-size:0.7rem; color:var(--muted); line-height:1.6; }
+  .keeping-tabs-meta em { color:var(--text); font-style:normal; }
+  .year-block { margin-top:1.25rem; }
+  .year-label { font-family:'Bebas Neue',sans-serif; font-size:2.2rem; color:var(--border); letter-spacing:0.05em; line-height:1; margin-bottom:0.15rem; user-select:none; transition:color 0.3s; }
+  .year-label.year-done { color:#2a2a2a; }
+  .release { display:grid; grid-template-columns:2rem 1fr auto; gap:0.75rem; align-items:center; padding:0.55rem 0; border-bottom:1px solid var(--border); cursor:pointer; transition:background 0.1s; user-select:none; -webkit-tap-highlight-color:transparent; }
+  .release:hover { background:#ffffff05; }
+  .check-box { width:1.1rem; height:1.1rem; border:1px solid var(--muted); display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:border-color 0.2s,background 0.2s; margin-left:0.3rem; }
+  .heard .check-box { border-color:var(--accent); background:var(--accent); }
+  .check-icon { opacity:0; font-size:0.65rem; color:#000; font-weight:bold; transition:opacity 0.15s; }
+  .heard .check-icon { opacity:1; }
+  .release-info { min-width:0; }
+  .release-name { font-size:0.83rem; font-weight:500; margin-bottom:0.15rem; transition:color 0.2s; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .heard .release-name { color:var(--heard-text); text-decoration:line-through; text-decoration-color:#2a2a2a; }
+  .release-date { font-size:0.62rem; color:var(--muted); letter-spacing:0.04em; transition:color 0.2s; }
+  .heard .release-date { color:#2a2a2a; }
+  .release-type { font-size:0.55rem; letter-spacing:0.1em; text-transform:uppercase; padding:0.2rem 0.45rem; border:1px solid; flex-shrink:0; transition:opacity 0.2s; }
+  .heard .release-type { opacity:0.2; }
+  .type-album { color:var(--tag-album); border-color:var(--tag-album); }
+  .type-single { color:var(--tag-single); border-color:var(--tag-single); }
+  .type-ep { color:var(--tag-ep); border-color:var(--tag-ep); }
+  .type-other { color:var(--tag-other); border-color:var(--tag-other); }
+  .heard.hide-heard { display:none; }
+  .empty { color:var(--muted); font-size:0.75rem; padding:2rem 0; text-align:center; letter-spacing:0.05em; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>DISCOGRAPHY</h1>
+  <p class="subtitle">MusicBrainz · Chronological · Listening tracker</p>
+</header>
+
+<div id="homeView">
+  <div class="section-label">Search</div>
+  <div class="search-row">
+    <input type="text" id="artistInput" placeholder="Search artist..." autocomplete="off">
+    <button class="primary" id="searchBtn" onclick="searchArtist()">Search</button>
+  </div>
+  <div class="status" id="homeStatus"></div>
+  <div id="picker"></div>
+
+  <div class="check-new-section">
+    <div class="section-label">New releases</div>
+    <div class="check-new-row">
+      <button class="primary" id="checkNewBtn" onclick="checkNew()">Check New</button>
+      <div class="check-new-meta" id="checkNewMeta">Never checked</div>
+    </div>
+    <div class="edit-date-row" id="editDateRow" style="display:none">
+      <input type="date" id="editDateInput">
+      <button onclick="saveEditedDate()">Save</button>
+      <button onclick="cancelEditDate()">Cancel</button>
+    </div>
+    <div class="check-scanning" id="checkScanning">Scanning tracked artists...</div>
+    <div id="newReleasesList"></div>
+  </div>
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem;flex-wrap:wrap;gap:0.5rem;">
+    <div class="section-label" style="margin-bottom:0">Tracked artists</div>
+    <div style="display:flex;gap:0.35rem;">
+      <button class="filter-btn active" id="sort-name" onclick="setSort('name',this)">Name</button>
+      <button class="filter-btn" id="sort-count" onclick="setSort('count',this)">Count</button>
+      <button class="filter-btn" id="sort-pct" onclick="setSort('pct',this)">%</button>
+    </div>
+  </div>
+  <div class="tracked-grid" id="trackedGrid"></div>
+
+  <div class="toolbar" style="margin-top:0.5rem">
+    <button class="filter-btn" onclick="exportData()">Export backup</button>
+    <button class="filter-btn" onclick="document.getElementById('importFile').click()">Import backup</button>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+  </div>
+</div>
+
+<div id="artistView">
+  <button class="back-btn" onclick="goHome()">← All artists</button>
+  <div class="status" id="artistStatus"></div>
+  <div id="toolbar" style="display:none" class="toolbar">
+    <button class="filter-btn active" data-type="all" onclick="setFilter('all',this)">All</button>
+    <button class="filter-btn" data-type="album" onclick="setFilter('album',this)">Albums</button>
+    <button class="filter-btn" data-type="ep" onclick="setFilter('ep',this)">EPs</button>
+    <button class="filter-btn" data-type="single" onclick="setFilter('single',this)">Singles</button>
+    <button class="filter-btn" data-type="other" onclick="setFilter('other',this)">Other</button>
+    <div class="toolbar-sep"></div>
+    <button class="filter-btn" id="hideHeardBtn" onclick="toggleHideHeard()">Hide heard</button>
+    <button class="filter-btn" id="trackBtn" onclick="toggleTrack()">Track</button>
+    <button class="filter-btn" id="keepTabsBtn" onclick="toggleKeepTabs()" style="display:none">Keep Tabs</button>
+    <div class="toolbar-sep"></div>
+    <button class="filter-btn" onclick="exportData()">Export</button>
+    <button class="filter-btn" onclick="document.getElementById('importFile2').click()">Import</button>
+    <input type="file" id="importFile2" accept=".json" style="display:none" onchange="importData(event)">
+    <div class="progress-text" id="progressText"></div>
+  </div>
+  <div class="progress-bar-wrap" id="progressWrap" style="display:none">
+    <div class="progress-bar-fill" id="progressFill"></div>
+  </div>
+  <div id="results"></div>
+</div>
+
+<script>
+'use strict';
+const BASE = 'https://musicbrainz.org/ws/2';
+const HEADERS = { 'User-Agent': 'DiscographyTracker/1.0 (personal use)' };
+const DB_NAME = 'discography', DB_VER = 1;
+
+// ---- INDEXEDDB ----
+let db = null;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      // One store for all key-value data
+      if (!d.objectStoreNames.contains('store')) d.createObjectStore('store');
+    };
+    req.onsuccess = e => { db = e.target.result; resolve(db); };
+    req.onerror = e => reject(e.target.error);
+  });
+}
+
+function dbGet(key) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('store', 'readonly');
+    const req = tx.objectStore('store').get(key);
+    req.onsuccess = () => resolve(req.result ?? null);
+    req.onerror = e => reject(e.target.error);
+  });
+}
+
+function dbSet(key, value) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('store', 'readwrite');
+    const req = tx.objectStore('store').put(value, key);
+    req.onsuccess = () => resolve();
+    req.onerror = e => reject(e.target.error);
+  });
+}
+
+function dbDelete(key) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('store', 'readwrite');
+    const req = tx.objectStore('store').delete(key);
+    req.onsuccess = () => resolve();
+    req.onerror = e => reject(e.target.error);
+  });
+}
+
+function dbGetAll() {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('store', 'readonly');
+    const store = tx.objectStore('store');
+    const keys = [], values = [];
+    store.openKeyCursor().onsuccess = e => {
+      const cursor = e.target.result;
+      if (cursor) { keys.push(cursor.key); cursor.continue(); }
+    };
+    store.openCursor().onsuccess = e => {
+      const cursor = e.target.result;
+      if (cursor) { values.push({ key: cursor.key, value: cursor.value }); cursor.continue(); }
+    };
+    tx.oncomplete = () => resolve(values);
+    tx.onerror = e => reject(e.target.error);
+  });
+}
+
+// ---- STORAGE HELPERS (async, IDB-backed) ----
+async function loadTracked()     { return (await dbGet('tracked'))     || {}; }
+async function saveTracked(v)    { await dbSet('tracked', v); }
+async function loadKeeping()     { return (await dbGet('keeping'))     || {}; }
+async function saveKeeping(v)    { await dbSet('keeping', v); }
+async function loadNewReleases() { return (await dbGet('newReleases')) || {}; }
+async function saveNewReleases(v){ await dbSet('newReleases', v); }
+async function loadLastChecked() { return (await dbGet('lastChecked')) || null; }
+async function saveLastChecked(v){ await dbSet('lastChecked', v); }
+async function loadHeard(id)     { return new Set((await dbGet(`heard:${id}`)) || []); }
+async function saveHeard(id, s)  { await dbSet(`heard:${id}`, [...s]); }
+async function deleteHeard(id)   { await dbDelete(`heard:${id}`); }
+
+async function isTracked(id) { const t = await loadTracked(); return !!t[id]; }
+async function isKeeping(id) { const k = await loadKeeping(); return !!k[id]; }
+
+// ---- APP STATE ----
+let allReleases = [], activeFilter = 'all', hideHeard = false;
+let currentArtistId = null, currentArtistName = null;
+let heardSet = new Set(), trackedSort = 'name';
+// Cached copies for sync reads in render functions
+let _tracked = {}, _keeping = {};
+
+async function refreshCache() {
+  _tracked = await loadTracked();
+  _keeping = await loadKeeping();
+}
+
+// ---- ARTIST MANAGEMENT ----
+async function trackArtist(id, name, total) {
+  const t = await loadTracked();
+  t[id] = { id, name, total };
+  await saveTracked(t);
+  _tracked = t;
+}
+
+async function untrackArtist(id) {
+  const t = await loadTracked(); delete t[id]; await saveTracked(t); _tracked = t;
+  await pruneNewReleasesForArtist(id);
+}
+
+async function unkeepArtist(id) {
+  const k = await loadKeeping(); delete k[id]; await saveKeeping(k); _keeping = k;
+  await pruneNewReleasesForArtist(id);
+}
+
+async function pruneNewReleasesForArtist(id) {
+  const d = await loadNewReleases();
+  let changed = false;
+  for (const [rgId, r] of Object.entries(d)) { if (r.artistId === id) { delete d[rgId]; changed = true; } }
+  if (changed) await saveNewReleases(d);
+}
+
+async function switchToKeeping(id, name) {
+  let watermark = '1900-01-01';
+  for (const r of allReleases) {
+    if (heardSet.has(r.id) && r['first-release-date']) {
+      const d = r['first-release-date'];
+      const p = d.length===4?d+'-01-01':d.length===7?d+'-01':d;
+      if (p > watermark) watermark = p;
+    }
+  }
+  const k = await loadKeeping();
+  k[id] = { id, name, caughtUpThrough: watermark, pendingIds: [] };
+  await saveKeeping(k); _keeping = k;
+  await untrackArtist(id);
+  await deleteHeard(id);
+  heardSet = new Set();
+}
+
+async function switchToTracking(id, name) {
+  const k = await loadKeeping();
+  const entry = k[id];
+  if (!entry) return;
+  const watermark = entry.caughtUpThrough;
+  const newHeard = new Set();
+  for (const r of allReleases) {
+    const d = r['first-release-date'];
+    if (!d) continue;
+    const p = d.length===4?d+'-01-01':d.length===7?d+'-01':d;
+    if (p <= watermark) newHeard.add(r.id);
+  }
+  await saveHeard(id, newHeard);
+  heardSet = newHeard;
+  await trackArtist(id, name, allReleases.length);
+  await unkeepArtist(id);
+}
+
+async function advanceWatermark(artistId) {
+  const k = await loadKeeping();
+  const entry = k[artistId];
+  if (!entry) return;
+  const d = await loadNewReleases();
+  const remaining = Object.entries(d)
+    .filter(([, r]) => r.artistId === artistId)
+    .map(([, r]) => r.date || '');
+  if (!remaining.length) {
+    entry.caughtUpThrough = new Date().toISOString().slice(0,10);
+  } else {
+    const oldest = remaining
+      .map(dt => dt.length===4?dt+'-01-01':dt.length===7?dt+'-01':dt||'9999')
+      .sort()[0];
+    const prev = new Date(oldest); prev.setDate(prev.getDate()-1);
+    entry.caughtUpThrough = prev.toISOString().slice(0,10);
+  }
+  k[artistId] = entry;
+  await saveKeeping(k); _keeping = k;
+}
+
+// ---- HOME ----
+async function goHome() {
+  document.getElementById('artistView').style.display = 'none';
+  document.getElementById('homeView').style.display = 'block';
+  currentArtistId = null; currentArtistName = null; allReleases = [];
+  document.getElementById('artistInput').value = '';
+  document.getElementById('picker').innerHTML = '';
+  setHomeStatus('');
+  await refreshCache();
+  await renderTrackedGrid();
+  await renderNewReleases();
+}
+
+function setSort(mode, btn) {
+  trackedSort = mode;
+  document.querySelectorAll('#sort-name,#sort-count,#sort-pct').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTrackedGrid();
+}
+
+async function renderTrackedGrid() {
+  const tracked = await loadTracked();
+  const keeping = await loadKeeping();
+  const grid = document.getElementById('trackedGrid');
+  const allEntries = [
+    ...Object.values(tracked).map(e => ({ ...e, mode: 'diving' })),
+    ...Object.values(keeping).map(e => ({ ...e, mode: 'keeping' }))
+  ];
+
+  if (!allEntries.length) {
+    grid.innerHTML = '<div class="home-empty">No tracked artists yet — search for one and hit Track.</div>';
+    return;
+  }
+
+  // Load heard counts for sorting
+  const heardCounts = {};
+  for (const e of allEntries) {
+    if (e.mode === 'diving') heardCounts[e.id] = (await loadHeard(e.id)).size;
+  }
+
+  allEntries.sort((a, b) => {
+    if (trackedSort === 'name') return a.name.localeCompare(b.name);
+    if (a.mode === 'keeping' && b.mode !== 'keeping') return 1;
+    if (b.mode === 'keeping' && a.mode !== 'keeping') return -1;
+    if (a.mode === 'keeping' && b.mode === 'keeping') return a.name.localeCompare(b.name);
+    const ha = heardCounts[a.id]||0, hb = heardCounts[b.id]||0;
+    if (trackedSort === 'count') return hb - ha;
+    if (trackedSort === 'pct') {
+      const pa = a.total ? ha/a.total : 0, pb = b.total ? hb/b.total : 0;
+      return pb - pa;
+    }
+    return 0;
+  });
+
+  grid.innerHTML = '';
+  for (const entry of allEntries) {
+    const card = document.createElement('div');
+    card.className = 'tracked-card' + (entry.mode==='keeping' ? ' keeping' : '');
+    if (entry.mode === 'keeping') {
+      card.innerHTML = `
+        <div class="tracked-card-name">${entry.name}</div>
+        <div class="tracked-card-right">
+          <span class="keeping-date">through ${formatDate(entry.caughtUpThrough)}</span>
+          <span class="keeping-label">Keeping Tabs</span>
+          <button class="untrack-btn" title="Remove">✕</button>
+        </div>`;
+      card.querySelector('.tracked-card-name').addEventListener('click', () => loadArtistById(entry.id, entry.name));
+      card.querySelector('.keeping-label').addEventListener('click', () => loadArtistById(entry.id, entry.name));
+      card.querySelector('.untrack-btn').addEventListener('click', async e => {
+        e.stopPropagation(); await unkeepArtist(entry.id); await renderTrackedGrid();
+      });
+    } else {
+      const heard = heardCounts[entry.id]||0, total = entry.total||0;
+      const pct = total ? Math.round((heard/total)*100) : 0;
+      card.innerHTML = `
+        <div class="tracked-card-name">${entry.name}</div>
+        <div class="tracked-card-right">
+          <div class="tracked-progress-wrap">
+            <div class="tracked-bar"><div class="tracked-bar-fill" style="width:${pct}%"></div></div>
+            <div class="tracked-count"><em>${heard}</em> / ${total}</div>
+          </div>
+          <button class="untrack-btn" title="Untrack">✕</button>
+        </div>`;
+      card.querySelector('.tracked-card-name').addEventListener('click', () => loadArtistById(entry.id, entry.name));
+      card.querySelector('.tracked-progress-wrap').addEventListener('click', () => loadArtistById(entry.id, entry.name));
+      card.querySelector('.untrack-btn').addEventListener('click', async e => {
+        e.stopPropagation(); await untrackArtist(entry.id); await renderTrackedGrid();
+      });
+    }
+    grid.appendChild(card);
+  }
+}
+
+// ---- CHECK NEW ----
+async function updateCheckNewMeta() {
+  const ts = await loadLastChecked();
+  const el = document.getElementById('checkNewMeta');
+  if (!ts) { el.innerHTML = `Never checked <button class="edit-date-btn" onclick="startEditDate()">edit</button>`; return; }
+  const d = new Date(ts);
+  const fmt = d.toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
+  el.innerHTML = `Last checked: <em>${fmt}</em> <button class="edit-date-btn" onclick="startEditDate()">edit</button>`;
+}
+
+async function startEditDate() {
+  const ts = await loadLastChecked();
+  document.getElementById('editDateInput').value = ts ? ts.slice(0,10) : new Date().toISOString().slice(0,10);
+  document.getElementById('editDateRow').style.display = 'flex';
+}
+async function saveEditedDate() {
+  const val = document.getElementById('editDateInput').value;
+  if (val) { await saveLastChecked(new Date(val+'T00:00:00').toISOString()); await updateCheckNewMeta(); }
+  document.getElementById('editDateRow').style.display = 'none';
+}
+function cancelEditDate() { document.getElementById('editDateRow').style.display = 'none'; }
+
+async function checkNew() {
+  const tracked = await loadTracked();
+  const keeping = await loadKeeping();
+  const entries = [...Object.values(tracked), ...Object.values(keeping)];
+  if (!entries.length) { setHomeStatus('No tracked artists to check.', true); return; }
+  const btn = document.getElementById('checkNewBtn');
+  btn.disabled = true;
+  document.getElementById('checkScanning').classList.add('visible');
+  setHomeStatus('');
+  const sinceDate = await loadLastChecked();
+  const discovered = await loadNewReleases();
+  let foundAny = false;
+
+  for (const entry of entries) {
+    const { id, name, total } = entry;
+    try {
+      await new Promise(r => setTimeout(r, 400));
+      const probe = await fetch(`${BASE}/release-group?artist=${id}&limit=1&offset=0&fmt=json`,{headers:HEADERS}).then(r=>r.json());
+      const liveCount = probe['release-group-count'] || 0;
+      if (liveCount <= (total||0)) continue;
+
+      await new Promise(r => setTimeout(r, 400));
+      let all = [], offset = 0;
+      while (true) {
+        const data = await fetch(`${BASE}/release-group?artist=${id}&limit=100&offset=${offset}&fmt=json`,{headers:HEADERS}).then(r=>r.json());
+        const items = data['release-groups']||[];
+        all.push(...items);
+        if (all.length >= data['release-group-count'] || items.length < 100) break;
+        offset += 100;
+        await new Promise(r => setTimeout(r, 320));
+      }
+
+      const newItems = all.filter(r => {
+        const d = r['first-release-date']; if (!d) return false;
+        const p = d.length===4?d+'-01-01':d.length===7?d+'-01':d;
+        return p > sinceDate.slice(0,10);
+      });
+
+      if (newItems.length) {
+        foundAny = true;
+        for (const r of newItems) {
+          if (!discovered[r.id]) {
+            discovered[r.id] = { artistId:id, artistName:name, title:r.title, date:r['first-release-date']||'', type:getDisplayType(r), typeLabel:getTypeLabel(r) };
+          }
+        }
+        const k = await loadKeeping();
+        if (k[id]) {
+          newItems.forEach(r => { if (!k[id].pendingIds.includes(r.id)) k[id].pendingIds.push(r.id); });
+          await saveKeeping(k); _keeping = k;
+        }
+      }
+      // Update total
+      const t = await loadTracked(); if (t[id]) { t[id].total = liveCount; await saveTracked(t); _tracked = t; }
+      const k2 = await loadKeeping(); if (k2[id]) { k2[id].total = liveCount; await saveKeeping(k2); _keeping = k2; }
+    } catch {}
+  }
+
+  await saveNewReleases(discovered);
+  await saveLastChecked(new Date().toISOString());
+  document.getElementById('checkScanning').classList.remove('visible');
+  btn.disabled = false;
+  await updateCheckNewMeta();
+  await renderTrackedGrid();
+  await renderNewReleases();
+  if (!foundAny) setHomeStatus('All up to date.');
+}
+
+async function renderNewReleases() {
+  const discovered = await loadNewReleases();
+  const list = document.getElementById('newReleasesList');
+  const tracked = await loadTracked();
+  const itemsRaw = [];
+  for (const [rgId, r] of Object.entries(discovered)) {
+    if (tracked[r.artistId]) {
+      const h = await loadHeard(r.artistId);
+      if (!h.has(rgId)) itemsRaw.push([rgId, r]);
+    } else {
+      itemsRaw.push([rgId, r]);
+    }
+  }
+  if (!itemsRaw.length) {
+    list.innerHTML = Object.keys(discovered).length ? '<div class="new-empty">All caught up ✓</div>' : '';
+    return;
+  }
+  itemsRaw.sort((a,b) => (b[1].date||'').localeCompare(a[1].date||''));
+  list.innerHTML = '';
+  const ul = document.createElement('div'); ul.className = 'new-releases-list';
+  for (const [rgId, r] of itemsRaw) {
+    const row = document.createElement('div');
+    row.className = 'new-release-row'; row.dataset.rgId = rgId;
+    row.innerHTML = `
+      <div class="check-box"><span class="check-icon">✓</span></div>
+      <div class="release-info">
+        <div class="release-name">${r.title}</div>
+        <div class="new-release-artist">${r.artistName} · ${formatDate(r.date)}</div>
+      </div>
+      <span class="release-type type-${r.type}">${r.typeLabel}</span>`;
+    row.addEventListener('click', () => markNewHeard(rgId, r.artistId, row));
+    ul.appendChild(row);
+  }
+  list.appendChild(ul);
+}
+
+async function markNewHeard(rgId, artistId, row) {
+  const tracked = await loadTracked();
+  if (tracked[artistId]) {
+    const heard = await loadHeard(artistId);
+    heard.add(rgId); await saveHeard(artistId, heard);
+    if (currentArtistId === artistId) { heardSet = heard; updateRow(rgId); updateProgress(); }
+  }
+  const keeping = await loadKeeping();
+  if (keeping[artistId]) {
+    keeping[artistId].pendingIds = (keeping[artistId].pendingIds||[]).filter(id => id !== rgId);
+    await saveKeeping(keeping); _keeping = keeping;
+  }
+  const d = await loadNewReleases(); delete d[rgId]; await saveNewReleases(d);
+  if (keeping[artistId]) await advanceWatermark(artistId);
+  row.style.transition = 'opacity 0.25s'; row.style.opacity = '0';
+  setTimeout(async () => { await renderNewReleases(); await renderTrackedGrid(); }, 280);
+}
+
+// ---- SEARCH ----
+document.getElementById('artistInput').addEventListener('keydown', e => { if (e.key==='Enter') searchArtist(); });
+
+async function searchArtist() {
+  const query = document.getElementById('artistInput').value.trim();
+  if (!query) return;
+  document.getElementById('searchBtn').disabled = true;
+  document.getElementById('picker').innerHTML = '';
+  setHomeStatus('Searching...');
+  try {
+    const data = await apiFetch(`${BASE}/artist/?query=${encodeURIComponent(query)}&limit=5&fmt=json`);
+    const artists = data.artists||[];
+    if (!artists.length) throw new Error('No artists found');
+    if (artists.length === 1) { await loadDiscography(artists[0]); }
+    else { setHomeStatus(''); showPicker(artists); }
+  } catch (err) { setHomeStatus(err.message, true); }
+  finally { document.getElementById('searchBtn').disabled = false; }
+}
+
+function showPicker(artists) {
+  const container = document.getElementById('picker');
+  const label = document.createElement('div'); label.className = 'picker-label'; label.textContent = 'Select an artist';
+  container.appendChild(label);
+  artists.forEach(a => {
+    const div = document.createElement('div'); div.className = 'artist-option';
+    const meta = [a.type, a['area']?.name, a.disambiguation].filter(Boolean).join(' · ');
+    div.innerHTML = `<div class="artist-option-name">${a.name}</div>${meta?`<div class="artist-option-meta">${meta}</div>`:''}`;
+    div.onclick = () => { container.innerHTML=''; loadDiscography(a); };
+    container.appendChild(div);
+  });
+}
+
+// ---- ARTIST LOADING ----
+async function loadDiscography(artist) {
+  showArtistView();
+  currentArtistId = artist.id; currentArtistName = artist.name;
+  heardSet = await loadHeard(artist.id);
+  setArtistStatus(`Loading ${artist.name}...`);
+  document.getElementById('results').innerHTML = '';
+  document.getElementById('toolbar').style.display = 'none';
+  document.getElementById('progressWrap').style.display = 'none';
+  try {
+    allReleases = await fetchAllReleaseGroups(artist.id);
+    renderArtistHeader(artist);
+    showToolbar();
+    renderReleases();
+    setArtistStatus('');
+  } catch (err) { setArtistStatus(err.message, true); }
+}
+
+async function loadArtistById(id, name) { await loadDiscography({ id, name }); }
+
+function showArtistView() {
+  document.getElementById('homeView').style.display = 'none';
+  document.getElementById('artistView').style.display = 'block';
+  activeFilter = 'all'; hideHeard = false;
+}
+
+async function showToolbar() {
+  const keeping = await isKeeping(currentArtistId);
+  document.getElementById('toolbar').style.display = 'flex';
+  document.getElementById('progressWrap').style.display = keeping ? 'none' : 'block';
+  document.querySelectorAll('.filter-btn[data-type]').forEach(b => b.classList.toggle('active', b.dataset.type==='all'));
+  document.getElementById('hideHeardBtn').classList.remove('active');
+  await updateTrackBtn();
+  await updateKeepTabsBtn();
+}
+
+// ---- TRACK / KEEP TABS ----
+async function toggleTrack() {
+  if (!currentArtistId) return;
+  if (await isTracked(currentArtistId)) { await untrackArtist(currentArtistId); }
+  else { await trackArtist(currentArtistId, currentArtistName, allReleases.length); }
+  await updateTrackBtn(); await updateKeepTabsBtn();
+}
+
+async function toggleKeepTabs() {
+  if (!currentArtistId) return;
+  if (await isKeeping(currentArtistId)) {
+    await switchToTracking(currentArtistId, currentArtistName);
+    renderReleases();
+  } else {
+    await switchToKeeping(currentArtistId, currentArtistName);
+  }
+  await updateTrackBtn(); await updateKeepTabsBtn();
+  document.getElementById('progressWrap').style.display = (await isKeeping(currentArtistId)) ? 'none' : 'block';
+  renderKeepingTabsView();
+}
+
+async function updateTrackBtn() {
+  const btn = document.getElementById('trackBtn'); if (!btn) return;
+  const keeping = await isKeeping(currentArtistId);
+  const tracked = await isTracked(currentArtistId);
+  btn.style.display = keeping ? 'none' : '';
+  btn.textContent = tracked ? 'Tracked ✓' : 'Track';
+  btn.classList.toggle('active', tracked);
+  document.getElementById('keepTabsBtn').style.display = tracked ? '' : 'none';
+}
+
+async function updateKeepTabsBtn() {
+  const btn = document.getElementById('keepTabsBtn'); if (!btn) return;
+  const keeping = await isKeeping(currentArtistId);
+  const tracked = await isTracked(currentArtistId);
+  btn.style.display = (tracked||keeping) ? '' : 'none';
+  btn.textContent = keeping ? 'Keeping Tabs ✓' : 'Keep Tabs';
+  btn.classList.toggle('watching-active', keeping);
+  document.getElementById('trackBtn').style.display = keeping ? 'none' : '';
+}
+
+// ---- HEARD ----
+async function toggleHeard(releaseId) {
+  if (heardSet.has(releaseId)) { heardSet.delete(releaseId); }
+  else { heardSet.add(releaseId); }
+  await saveHeard(currentArtistId, heardSet);
+  if (await isTracked(currentArtistId)) { await trackArtist(currentArtistId, currentArtistName, allReleases.length); }
+  updateRow(releaseId); updateProgress();
+}
+
+function updateRow(releaseId) {
+  const el = document.querySelector(`[data-id="${releaseId}"]`); if (!el) return;
+  const heard = heardSet.has(releaseId);
+  el.classList.toggle('heard', heard);
+  if (hideHeard) el.classList.toggle('hide-heard', heard);
+  updateYearLabels();
+}
+
+function updateYearLabels() {
+  document.querySelectorAll('.year-block').forEach(block => {
+    const rows = block.querySelectorAll('.release');
+    const allDone = [...rows].every(r => r.classList.contains('heard'));
+    block.querySelector('.year-label')?.classList.toggle('year-done', allDone);
+  });
+}
+
+// ---- API ----
+async function apiFetch(url) {
+  await new Promise(r => setTimeout(r, 320));
+  const resp = await fetch(url, { headers: HEADERS });
+  if (!resp.ok) throw new Error(`API error ${resp.status}`);
+  return resp.json();
+}
+
+async function fetchAllReleaseGroups(artistId) {
+  let all = [], offset = 0;
+  while (true) {
+    const data = await apiFetch(`${BASE}/release-group?artist=${artistId}&limit=100&offset=${offset}&fmt=json`);
+    const items = data['release-groups']||[];
+    all.push(...items);
+    if (all.length >= data['release-group-count'] || items.length < 100) break;
+    offset += 100;
+    setArtistStatus(`Loading... (${all.length} releases found)`);
+  }
+  all.sort((a,b) => (a['first-release-date']||'9999').localeCompare(b['first-release-date']||'9999'));
+  const t = await loadTracked(); if (t[artistId]) { t[artistId].total = all.length; await saveTracked(t); _tracked = t; }
+  return all;
+}
+
+// ---- RENDER ----
+function getDisplayType(rg) {
+  const primary = (rg['primary-type']||'').toLowerCase();
+  const secondary = (rg['secondary-types']||[]).map(s=>s.toLowerCase());
+  if (secondary.includes('compilation')||secondary.includes('live')||secondary.includes('remix')) return 'other';
+  if (primary==='album') return 'album';
+  if (primary==='ep') return 'ep';
+  if (primary==='single') return 'single';
+  return 'other';
+}
+function getTypeLabel(rg) { const s=rg['secondary-types']||[]; return s.length?s[0]:(rg['primary-type']||'Release'); }
+function formatDate(str) {
+  if (!str) return 'date unknown';
+  if (str.length===4) return str;
+  if (str.length===7) { const [y,m]=str.split('-'); return new Date(y,m-1).toLocaleString('en-US',{month:'short',year:'numeric'}); }
+  try { return new Date(str).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric'}); } catch { return str; }
+}
+
+function renderArtistHeader(artist) {
+  document.getElementById('results').innerHTML = `
+    <div class="artist-header">
+      <div class="artist-name-display">${artist.name}</div>
+      <div class="artist-meta-display" id="artistMeta"></div>
+    </div>
+    <div id="keepingTabsView"></div>
+    <div id="timeline"></div>`;
+  renderKeepingTabsView();
+}
+
+async function renderKeepingTabsView() {
+  const el = document.getElementById('keepingTabsView'); if (!el) return;
+  if (await isKeeping(currentArtistId)) {
+    const k = (await loadKeeping())[currentArtistId];
+    const pending = k?.pendingIds?.length || 0;
+    el.innerHTML = `
+      <div class="keeping-tabs-view">
+        <div class="keeping-tabs-label">Keeping Tabs</div>
+        <div class="keeping-tabs-meta">
+          Caught up through <em>${formatDate(k?.caughtUpThrough)}</em><br>
+          ${pending ? `<em>${pending}</em> new release${pending!==1?'s':''} pending in New Releases` : 'No pending new releases'}
+        </div>
+      </div>`;
+    document.getElementById('timeline').innerHTML = '';
+  } else { el.innerHTML = ''; }
+}
+
+async function renderReleases() {
+  if (await isKeeping(currentArtistId)) { renderKeepingTabsView(); return; }
+  const filtered = activeFilter==='all' ? allReleases : allReleases.filter(r => getDisplayType(r)===activeFilter);
+  const metaEl = document.getElementById('artistMeta');
+  if (metaEl) metaEl.textContent = `${allReleases.length} release groups · MusicBrainz`;
+  const timeline = document.getElementById('timeline'); if (!timeline) return;
+  if (!filtered.length) { timeline.innerHTML = '<div class="empty">No releases for this filter.</div>'; updateProgress(); return; }
+  const byYear = {};
+  for (const r of filtered) {
+    const year = (r['first-release-date']||'????').substring(0,4);
+    if (!byYear[year]) byYear[year] = [];
+    byYear[year].push(r);
+  }
+  const frag = document.createDocumentFragment();
+  for (const year of Object.keys(byYear).sort()) {
+    const block = document.createElement('div'); block.className = 'year-block';
+    const yearEl = document.createElement('div'); yearEl.className = 'year-label'; yearEl.textContent = year;
+    block.appendChild(yearEl);
+    for (const r of byYear[year]) {
+      const type = getDisplayType(r), label = getTypeLabel(r), isHeard = heardSet.has(r.id);
+      const row = document.createElement('div');
+      row.className = 'release'+(isHeard?' heard':'')+(isHeard&&hideHeard?' hide-heard':'');
+      row.dataset.id = r.id;
+      row.innerHTML = `
+        <div class="check-box"><span class="check-icon">✓</span></div>
+        <div class="release-info">
+          <div class="release-name">${r.title}</div>
+          <div class="release-date">${formatDate(r['first-release-date'])}</div>
+        </div>
+        <span class="release-type type-${type}">${label}</span>`;
+      row.addEventListener('click', () => toggleHeard(r.id));
+      block.appendChild(row);
+    }
+    frag.appendChild(block);
+  }
+  timeline.innerHTML = ''; timeline.appendChild(frag);
+  updateYearLabels(); updateProgress();
+}
+
+function updateProgress() {
+  const filtered = activeFilter==='all' ? allReleases : allReleases.filter(r => getDisplayType(r)===activeFilter);
+  const total = filtered.length, done = filtered.filter(r => heardSet.has(r.id)).length;
+  const pct = total ? Math.round((done/total)*100) : 0;
+  document.getElementById('progressText').innerHTML = `<span>${done}</span> / ${total} heard`;
+  document.getElementById('progressFill').style.width = pct+'%';
+}
+
+function setFilter(type, btn) {
+  activeFilter = type;
+  document.querySelectorAll('.filter-btn[data-type]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderReleases();
+}
+
+function toggleHideHeard() {
+  hideHeard = !hideHeard;
+  document.getElementById('hideHeardBtn').classList.toggle('active', hideHeard);
+  document.querySelectorAll('.release.heard').forEach(el => el.classList.toggle('hide-heard', hideHeard));
+}
+
+function setHomeStatus(msg, isError=false) { const el=document.getElementById('homeStatus'); el.textContent=msg; el.className='status'+(isError?' error':''); }
+function setArtistStatus(msg, isError=false) { const el=document.getElementById('artistStatus'); el.textContent=msg; el.className='status'+(isError?' error':''); }
+
+// ---- EXPORT / IMPORT ----
+async function exportData() {
+  const backup = {
+    tracked: await loadTracked(),
+    keeping: await loadKeeping(),
+    newReleases: await loadNewReleases(),
+    lastChecked: await loadLastChecked()
+  };
+  const all = await dbGetAll();
+  for (const { key, value } of all) {
+    if (key.startsWith('heard:')) backup[key] = value;
+  }
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url;
+  a.download = `discography-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click(); URL.revokeObjectURL(url);
+}
+
+async function importData(event) {
+  const file = event.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async e => {
+    try {
+      const data = JSON.parse(e.target.result); let count = 0;
+      for (const [key, val] of Object.entries(data)) {
+        if (key==='tracked') { await saveTracked(val); _tracked=val; }
+        else if (key==='keeping') { await saveKeeping(val); _keeping=val; }
+        else if (key==='newReleases') await saveNewReleases(val);
+        else if (key==='lastChecked') await saveLastChecked(val);
+        else if (key.startsWith('heard:') && Array.isArray(val)) { await dbSet(key, val); count++; }
+      }
+      if (currentArtistId) { heardSet = await loadHeard(currentArtistId); renderReleases(); }
+      await renderTrackedGrid(); await renderNewReleases(); await updateCheckNewMeta();
+      setHomeStatus(`Imported progress for ${count} artist${count!==1?'s':''}.`);
+    } catch { setHomeStatus('Import failed — wrong format.', true); }
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+// ---- SERVICE WORKER ----
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/Discography/sw.js').catch(e => console.warn('SW reg failed:', e));
+}
+
+// ---- INIT ----
+openDB().then(async () => {
+  await refreshCache();
+  const lc = await loadLastChecked();
+  if (!lc) await saveLastChecked(new Date('2026-04-01T12:00:00').toISOString());
+  await renderTrackedGrid();
+  await renderNewReleases();
+  await updateCheckNewMeta();
+}).catch(e => {
+  document.body.innerHTML = '<div style="padding:2rem;color:#ff5555;font-family:monospace">Failed to open database: ' + e + '</div>';
+});
+</script>
+</body>
+</html>
